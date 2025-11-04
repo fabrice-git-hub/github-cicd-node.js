@@ -10,7 +10,10 @@ on:
 
 permissions:
     contents: write # the workflow can read and modify repository contents
-
+    
+defaults:
+    run:
+      working-directory: ./mon-app-node
 jobs:
     lint:
         runs-on: ubuntu-latest
