@@ -1,0 +1,90 @@
+name: CI/CD Pipeline
+
+on:
+    pull_request: # The workflow runs when certain pull request events happen
+        branches: [main] # The workflow will only trigger for pull requests targeting the main branch.
+
+        # opened → when a pull request is first created.
+        # synchronize → when new commits are pushed to the pull request
+        types: [opened, synchronize]
+
+permissions:
+    contents: write # the workflow can read and modify repository contents
+
+jobs:
+    lint:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v3
+            - name: Set up Node.js
+              uses: actions/setup-node@v3
+              with:
+                  node-version: 16
+            - name: Install dependencies
+              run: npm install
+            - name: Run linter
+              run: npm run lint
+              # If you haven't set up ESLint yet, see https://eslint.org/docs/latest/user-guide/getting-started
+
+    security-scan:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v3
+            - name: Set up Node.js
+              uses: actions/setup-node@v3
+              with:
+                  node-version: 16
+            - name: Install dependencies
+              run: npm install
+            - name: Initialize CodeQL
+              uses: github/codeql-action/init@v3
+              with:
+                  languages: javascript
+            - name: Perform CodeQL Analysis
+              uses: github/codeql-action/analyze@v3
+
+    test:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v3
+            - name: Set up Node.js
+              uses: actions/setup-node@v3
+              with:
+                  node-version: 16
+            - name: Install dependencies
+              run: npm install
+            - name: Run tests
+              run: npm test
+
+    build:
+        needs: [lint, security-scan, test]
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v3
+          - uses: actions/setup-node@v3
+            with: { node-version: 16 }
+          - run: npm install
+          - run: npm run build
+          - uses: actions/upload-artifact@v4
+            with:
+              name: dist
+              path: dist/
+
+    release: 
+      needs:  build 
+      runs-on:  ubuntu-latest 
+      env: 
+        GITHUB_TOKEN:  ${{  secrets.GITHUB_TOKEN  }}   # fourni automatiquement par GitHub 
+      steps: 
+        -  uses:  actions/checkout@v3 
+        -  uses:  actions/download-artifact@v4 
+           with: { name:  dist } 
+        -  id:  create_release 
+           uses:  elgohr/Github-Release-Action@v5 
+           with: 
+             title:  Dev  Build  ${{  github.sha  }} 
+             tag:  dev-${{  github.sha  }}
+             prerelease:  true
